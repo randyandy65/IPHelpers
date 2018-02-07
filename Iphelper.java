@@ -12,17 +12,25 @@ IPHelper.prototype = {
 		this.gateway = "";
 		this.baseIP_deflated = "";
 		this.fullIP_deflated = "";
+		this.ipparts = {};
+		this.log = new GSLogExt('integration.log_level' , 'IPHelper()');
 		this.DebugMode = false;
 		if(gs.getProperty("solvinity.enable.debug.ipcheck") =="true"){
 			this.DebugMode = true;
-			gs.log("IPHelper in Debug mode. Switch off in property: solvinity.enable.debug.ipcheck ");
+			this.log.pushDebug("IPHelper in Debug mode. Switch off in property: solvinity.enable.debug.ipcheck ");
 		}
-		
+		this.log.pushDebug("IPHelper init");
 		this._setBase();
 		this._setIpVersion();
-		this._setIpSort();
 		this._validateIP();
-		this._setDeflateIP();
+		if(this.validIP){
+			this._setIpSort();
+			this._setDeflateIP();
+			this._setGateWay();
+		}
+		if(this.DebugMode){
+			this.log.logDebug(" - IPHelper init");
+		}
 	},
 	
 	getBaseIP: function(){
@@ -48,7 +56,6 @@ IPHelper.prototype = {
 		return this._netmaskipv61();
 	},
 	getGateway: function(){
-		this._setGateWay();
 		return this.gateway;
 	},
 	getBaseIP_deflated: function(){
@@ -59,6 +66,7 @@ IPHelper.prototype = {
 	},
 	
 	_validateIP: function(){
+		this.log.pushDebug("validateIP()");
 		if(this.ipversion!='IPv6'){
 			if (/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(this.baseIP)) {
 				this.validIP = true;
@@ -68,12 +76,15 @@ IPHelper.prototype = {
 				this.validIP = true;
 			}
 		}
+		this.log.pushDebug("   Valid? " + this.validIP );
+		this.log.pushDebug(" - validateIP()");
 	},
 	
-	/* Will return a valid sort value for given IP-address. Wil only except stem */
+	/* Will return a valid sort value for given IP-address. Will only except stem */
 	_setIpSort: function(){
-		
+		this.log.pushDebug("setIPSort()");
 		if(this.ipversion=='IPv6'){ //Ipv6
+			this.log.pushDebug(" -- IPV6");
 			var newip =  this.baseIP;
 			var curSplit = this.baseIP.split(":");
 			var ceros="";
@@ -86,19 +97,20 @@ IPHelper.prototype = {
 				newip = this.baseIP.replace('::', ceros);
 			}
 			
-			var parts = newip.split(':');
-			for(i=0; i < parts.length; i++) {
-				while(parts[i].length < 4) {
-					parts[i] = '0' + parts[i];
+			this.ipparts = newip.split(':');
+			for(i=0; i < this.ipparts.length; i++) {
+				while(this.ipparts[i].length < 4) {
+					this.ipparts[i] = '0' + this.ipparts[i];
 				}
 			}
 			
-			this.ipsort=parts.join('');
+			this.ipsort=this.ipparts.join('');
 			
 			
 		}else if(this.ipversion=='IPv4'){ //IPv4 address
-			if(this.DebugMode) gs.log('Sort IPv4 baseip = ' + this.baseIP);
-				var networkip =  this.baseIP.split(".");
+			this.log.pushDebug(" -- IPV4");
+			
+			var networkip =  this.baseIP.split(".");
 			for(i = 0; i < networkip.length; i++) {
 				while(networkip[i].length < 3) {
 					networkip[i] = '0' + networkip[i];
@@ -107,11 +119,12 @@ IPHelper.prototype = {
 			}
 			this.ipsort = networkip.join('');
 		}
+		this.log.pushDebug(" - setIPSort()");
 	},
 	
 	_setBase: function(){
-		if(this.DebugMode) gs.log("fullip = " + this.fullip);
-			
+		this.log.pushDebug("setBaseIP()");
+		this.log.pushDebug(" -- fullip = " + this.fullip);
 		if(this.fullip.indexOf("/")>0){
 			var varstem = this.fullip.split("/");
 			this.baseIP = varstem[0];
@@ -120,14 +133,17 @@ IPHelper.prototype = {
 			this.baseIP = this.fullip;
 			this.subnetrange="";
 		}
+		this.log.pushDebug(" - setBaseIP()");
 	},
 	
 	_setIpVersion: function(){
+		this.log.pushDebug("setIpVersion()");
 		if(this.baseIP.indexOf(":")>0){
 			this.ipversion="IPv6";
 		}else if(this.baseIP.indexOf(".")>0){
 			this.ipversion="IPv4";
 		}
+		this.log.pushDebug(" - setIpVersion()");
 	},
 	
 	/*Samples:
@@ -135,13 +151,16 @@ IPHelper.prototype = {
 	"/112" --> this.netmask =  "ffff:ffff:ffff:ffff:ffff:ffff:ffff:0";
  	*/
 	_netmaskipv6: function(){
+		this.log.pushDebug("Set Netmask _netmaskipv6()");
 		if(this.ipversion == 'IPv6' && this.subnetrange != ""){
+			
 			var bitstring ="";
 			for (b=0; b<=(parseInt(this.subnetrange,10) - 1);b++){
 				bitstring += "1";
 			}
-			if(this.DebugMode) gs.log("biststring = " + bitstring );
-				for (c = parseInt(this.subnetrange,10); c <= 127 ;c++){
+			this.log.pushDebug(" - biststring = " + bitstring );
+			
+			for (c = parseInt(this.subnetrange,10); c <= 127 ;c++){
 				bitstring += "0";
 			}
 			var bytes={};
@@ -169,28 +188,29 @@ IPHelper.prototype = {
 			}
 		},
 		
-		
-		
 		/*
 		De gateway bij een /64 en bij een /112 ipv6 adres eindigt bij beiden altijd op :1.
 		Als er bij /112 een :0 dan de 0 vervangen met 1
 		v.b. 2a00:1558:f000::4:0/112 => 2a00:1558:f000::4::1
  		*/
 		_setGateWay: function(){
-			if(this.DebugMode) gs.log("Getway for subnet = " + this.subnetrange.toString());
+			this.log.pushDebug("setGateWay()")
+			this.log.pushDebug("  using deflate ip = " + this.baseIP_deflated.toString())
+			this.log.pushDebug("  gateway subnet = " + this.subnetrange.toString());
 				
 			if(this.subnetrange.toString() == '112'){
-				if(this.DebugMode) gs.log("Getway for subnet = " + this.subnetrange);
-					if(this.baseIP.substring((this.baseIP.length-2)) == ":0" ) {
-					this.gateway = this.baseIP.substring(0,(this.baseIP.length-1))+"1";
+				if(this.baseIP_deflated.substring((this.baseIP_deflated.length-2)) == ":0" ) {
+					this.gateway = this.baseIP_deflated.substring(0,(this.baseIP_deflated.length-1))+"1";
 				}else{
-					this.gateway = this.baseIP + "1";
+					this.gateway = this.baseIP_deflated + "1";
 				}
 			}else if(this.subnetrange.toString() == "64"){
-				this.gateway = this.baseIP.toString() + "1";
+				this.gateway = this.baseIP_deflated.toString() + "1";
 			}else{
+				this.log.pushDebug("  no subnet! " );
 				this.gateway = "";
 			}
+			this.log.pushDebug(" - setGateWay()" );
 		},
 		
 		// Remove leading '0' from ipv6 address
@@ -198,42 +218,47 @@ IPHelper.prototype = {
 		//  Will set this.fullIP_deflated i.e. 2a00:1558:3203:13::/64
 		// For IPv4 it will not change anything
 		_setDeflateIP: function() {
+			this.log.pushDebug("setDeflateIP()");
 			if(this.ipversion == "IPv6"){
-				if(this.DebugMode )
-					gs.log("Deflate IPv6" , "IPCheck");
+				this.log.pushDebug(" - ip version 6");
 				
-				var arrIP = this.baseIP.split(':');
-				for (var i = 0; i < arrIP.length; i++) {
-					if(!isNaN(parseInt(arrIP[i], 16))) {
-						arrIP[i] = parseInt(arrIP[i], 16);
-						arrIP[i] = this._DecToHex(arrIP[i]);
-						
-					}
-					
-					if(this.DebugMode) 
-						gs.debug("arrIP[i] = " + arrIP[i] );
-
+				var ip = ""
+				//here we will join the ipparts to a single inflated ip string
+				var resultip = "";
+				var deflated = false;
+				var arrIP = {};
+				for (var pp=0; pp<=this.ipparts.length - 1; pp += 1){
+					arrIP[pp] = parseInt(this.ipparts[pp], 16);
+					arrIP[pp] = this._DecToHex(arrIP[pp]).toString();
+					if(arrIP[pp] == "0"){
+						if(!deflated){
+							if(resultip.substring(resultip.length-2,resultip.length) == "::" ){
+								deflated = true;
+							}else{
+								resultip += ":";
+							}
+						}else{
+							if(resultip.substring(resultip.length-2,resultip.length) != "::" )
+								resultip += arrIP[pp] ;
+						}
+					}else{
+						resultip += arrIP[pp] +  (pp == 7 ? "" : ":"); 
+					}						
 				}
-				
-				if(this.DebugMode )
-					gs.log("Deflate IPv6" , "IPCheck");
-
-				var ip = arrIP.join(':');
+					
 								
-				if(this.DebugMode )
-					gs.log("Deflate IPv6 Reverse IP=" + ip , "IPCheck");
-								
-				this.baseIP_deflated = ip;
+				this.baseIP_deflated = resultip;
 				if (this.subnetrange != "" ) {
-					this.fullIP_deflated = ip + '/' + this.subnetrange;
+					this.fullIP_deflated = resultip + '/' + this.subnetrange;
 				}else{
-					this.fullIP_deflated = ip;
+					this.fullIP_deflated = resultip;
 				}
 			}else{
+				this.log.pushDebug(" - ip version 4 ");
 				this.baseIP_deflated = this.baseIP;
 				this.fullIP_deflated = this.fullip;
 			}
-			
+			this.log.pushDebug(" - setDeflateIP()");
 		},
 		
 		_reverseString: function(str) {
@@ -274,13 +299,21 @@ IPHelper.prototype = {
 
 /* 
 Testscripts
-var testaddress = ["2a02:10:0:1::23:10::/64",
-"2a04:9a04:18a0:8a00::/112",
-"2001:978:2:2c::59:0/112",
-"2a0f:3506:4c:3231::/64",
-"2a0f:3506:4c:3230::1:0",
-"192.168.250.248/29",
-"2a00:1558:1801:0004::/64"] ;
+var testaddress = ["2a02:10:1:1::11:10",
+"2a02:10:0:1::23:10",
+"2a00:1558:3203:0013::08:0", 
+"2a04:9a04:18a0:4c00::2:3",
+"2a00:1558:3000:0:0:0:0:82", 
+"2a00:1558:1000::001:102",
+"2a00:1558:1000::2:0/112",
+"2a00:1558:1000::/112",
+"2a00:1558:1000:0:0:0:0:0/112",
+"2a00:1558:1805:004::/64", 
+"2a00:1558:aa01:0024::0/64", 
+"2001:680:0:800f::2:74/126",
+"2a00:1558:1801:4::0/64",
+"2a00:1558:3203:0013::/64"
+] ;
 
 for(var tr=0; tr < testaddress.length; tr++){
     gs.print("Test run: " + tr);
