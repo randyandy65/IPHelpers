@@ -57,7 +57,6 @@ IPHelper.prototype = {
 		return this._netmaskipv61();
 	},
 	getGateway: function(){
-		
 		return this.gateway;
 	},
 	getBaseIP_deflated: function(){
@@ -198,11 +197,10 @@ IPHelper.prototype = {
 		_setGateWay: function(){
 			this.log.pushDebug("setGateWay()")
 			this.log.pushDebug("  using deflate ip = " + this.baseIP_deflated.toString())
-			this.log.pushDebug("  getway subnet = " + this.subnetrange.toString());
+			this.log.pushDebug("  gateway subnet = " + this.subnetrange.toString());
 				
 			if(this.subnetrange.toString() == '112'){
-				if(this.DebugMode) gs.log("Getway for subnet = " + this.subnetrange);
-					if(this.baseIP_deflated.substring((this.baseIP_deflated.length-2)) == ":0" ) {
+				if(this.baseIP_deflated.substring((this.baseIP_deflated.length-2)) == ":0" ) {
 					this.gateway = this.baseIP_deflated.substring(0,(this.baseIP_deflated.length-1))+"1";
 				}else{
 					this.gateway = this.baseIP_deflated + "1";
@@ -227,31 +225,26 @@ IPHelper.prototype = {
 				
 				var ip = ""
 				//here we will join the ipparts to a single inflated ip string
-				//taking into account that there can be only 1 "::"
 				var resultip = "";
 				var deflated = false;
-				//instead of using slice() we copy the IP parts but converted for later use
 				var arrIP = {};
 				for (var pp=0; pp<=this.ipparts.length - 1; pp += 1){
 					arrIP[pp] = parseInt(this.ipparts[pp], 16);
 					arrIP[pp] = this._DecToHex(arrIP[pp]).toString();
-				}
-				
-				for (var pp=0; pp<=this.ipparts.length - 1; pp += 1){
-					this.log.pushDebug(" - part = " + arrIP[pp]);
-					if(arrIP[pp] == "0" && !deflated && arrIP[pp+1]=="0"){
-						//find all cero's and deflate
-						for(cc=pp; cc<this.ipparts.length - 1; cc += 1){
-							if(arrIP[cc]!="0")	break;
+					if(arrIP[pp] == "0"){
+						if(!deflated){
+							if(resultip.substring(resultip.length-2,resultip.length) == "::" ){
+								deflated = true;
+							}else{
+								resultip += ":";
+							}
+						}else{
+							if(resultip.substring(resultip.length-2,resultip.length) != "::" )
+								resultip += arrIP[pp] ;
 						}
-						pp = cc ;
-						deflated = true;
-						resultip += ":";
-						//Last number could be a cero, so dont add
-						resultip +=  (pp == 7 ? "" : arrIP[pp] ) + (pp == 7 ? "" : ":"); 
 					}else{
-						resultip += arrIP[pp] + (pp == 7 ? "" : ":"); 
-					}
+						resultip += arrIP[pp] +  (pp == 7 ? "" : ":"); 
+					}						
 				}
 					
 								
@@ -304,6 +297,7 @@ IPHelper.prototype = {
 	
 	type: 'IPHelper'
 } ;
+<<<<<<< HEAD:Iphelper.js
 =======
 /* For now only IPv6 functionality */
 var IPHelper = Class.create();
@@ -588,6 +582,26 @@ var testaddress = ["2a02:10:0:1::23:10::/64",
 "2a0f:3506:4c:3230::1:0",
 "192.168.250.248/29",
 "2a00:1558:1801:0004::/64"] ;
+=======
+
+/* 
+Testscripts
+var testaddress = ["2a02:10:1:1::11:10",
+"2a02:10:0:1::23:10",
+"2a00:1558:3203:0013::08:0", 
+"2a04:9a04:18a0:4c00::2:3",
+"2a00:1558:3000:0:0:0:0:82", 
+"2a00:1558:1000::001:102",
+"2a00:1558:1000::2:0/112",
+"2a00:1558:1000::/112",
+"2a00:1558:1000:0:0:0:0:0/112",
+"2a00:1558:1805:004::/64", 
+"2a00:1558:aa01:0024::0/64", 
+"2001:680:0:800f::2:74/126",
+"2a00:1558:1801:4::0/64",
+"2a00:1558:3203:0013::/64"
+] ;
+>>>>>>> parent of 315cb80... Final update:Iphelper.java
 
 for(var tr=0; tr < testaddress.length; tr++){
     gs.print("Test run: " + tr);
@@ -610,5 +624,9 @@ function runtest(ipaddress){
 	gs.print("Deflated Full IP address:" + ipcheck.getFullIP_deflated() );
 	gs.print("=============================");
 }
+<<<<<<< HEAD:Iphelper.js
  */
 >>>>>>> d73958db359764df93b880264924f452e081a161
+=======
+ */
+>>>>>>> parent of 315cb80... Final update:Iphelper.java
